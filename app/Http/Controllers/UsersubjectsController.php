@@ -21,12 +21,8 @@ class UsersubjectsController extends Controller {
      *
      * @return Response
      */
-    public function index(Request $request) {
-        $this->validate($request, [
-            'user_id' => 'required',
-        ]);
-        $user_id = $request->input('user_id');
-        return response()->json(Usersubject::where('user_id', $user_id)->get());
+    public function index($userid) {
+        return response()->json(Usersubject::where('user_id', $userid)->get());
     }
 
     /**
@@ -34,23 +30,21 @@ class UsersubjectsController extends Controller {
      *
      * @return Response
      */
-    public function store(Request $request) {
+    public function store(Request $request,$userid) {
         $this->validate($request, [
-            'user_id' => 'required',
             'user_subject' => 'required'
         ]);
-        $user_id = $request->input('user_id');
         $user_subject = $request->input('user_subject', []);
         $data = [];
         foreach ($user_subject as $subject) {
             $data[] = array(
-                'user_id' => $user_id, 'subject' => $subject,
+                'user_id' => $userid, 'subject' => $subject,
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s')
             );
         }
         Usersubject::insert($data);
-        return response()->json(Usersubject::where('user_id', $user_id)->get());
+        return response()->json(Usersubject::where('user_id', $userid)->get(),201);
     }
 
     /**
@@ -58,16 +52,26 @@ class UsersubjectsController extends Controller {
      *
      * @return Response
      */
-    public function destroy(Request $request) {
+    public function destroy($userid,$id) {
+        Usersubject::findOrFail($id);                
+        Usersubject::where('user_id', $userid)->where('id', $id)->delete();
+        return response()->json([],204);
+    }
+    
+    /**
+     * Update a user's subject.
+     *
+     * @return Response
+     */
+    public function update(Request $request,$userid,$id) {
         $this->validate($request, [
-            'user_id' => 'required',
-            'user_subject' => 'required',
-            '_method' => 'required|in:DELETE'
+            'user_subject' => 'required'
         ]);
-        $user_id = $request->input('user_id');
         $user_subject = $request->input('user_subject');
-        Usersubject::where('user_id', $user_id)->where('subject', $user_subject)->delete();
-        return response()->json(Usersubject::where('user_id', $user_id)->get());
+        $model=Usersubject::findOrFail($id);
+        $model->subject=$user_subject;
+        $model->save();     
+        return response()->json(Usersubject::where('user_id', $userid)->get(),200);
     }
 
 }

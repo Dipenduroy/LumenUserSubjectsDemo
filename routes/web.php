@@ -15,13 +15,16 @@ $router->get('/', function () use ($router) {
     return $router->app->version();
 });
 $router->group(['middleware' => 'auth','prefix'=>'api'], function () use ($router) {
-    $router->get('usersubjects', [
-        'as' => 'usersubjects', 'uses' => 'UsersubjectsController@index'
+    $router->get('user-subjects/user/{userid}', [
+        'as' => 'user-subjects', 'uses' => 'UsersubjectsController@index'
     ]);
-    $router->post('usersubjects', [
-        'as' => 'usersubjects', 'uses' => 'UsersubjectsController@store'
+    $router->post('user-subjects/user/{userid}', [
+        'as' => 'user-subjects', 'uses' => 'UsersubjectsController@store'
     ]);
-    $router->delete('usersubjects', [
-        'as' => 'usersubjects', 'uses' => 'UsersubjectsController@destroy'
+    $router->delete('user-subjects/user/{userid}/id/{id}', [
+        'as' => 'user-subjects', 'uses' => 'UsersubjectsController@destroy'
+    ]);
+    $router->patch('user-subjects/user/{userid}/id/{id}', [
+        'as' => 'user-subjects', 'uses' => 'UsersubjectsController@update'
     ]);
 });

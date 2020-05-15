@@ -8,9 +8,11 @@ use Illuminate\Validation\ValidationException;
 use Laravel\Lumen\Exceptions\Handler as ExceptionHandler;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
+use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 
-class Handler extends ExceptionHandler
-{
+class Handler extends ExceptionHandler {
+
     /**
      * A list of the exception types that should not be reported.
      *
@@ -33,8 +35,7 @@ class Handler extends ExceptionHandler
      *
      * @throws \Exception
      */
-    public function report(Throwable $exception)
-    {
+    public function report(Throwable $exception) {
         parent::report($exception);
     }
 
@@ -47,8 +48,24 @@ class Handler extends ExceptionHandler
      *
      * @throws \Throwable
      */
-    public function render($request, Throwable $exception)
-    {
-        return parent::render($request, $exception);
+    public function render($request, Throwable $exception) {
+        $parentRender = parent::render($request, $exception);
+        if ($this->isDebugMode()) {
+            return $parentRender;
+        }
+
+        return new JsonResponse([
+            'message' => $exception instanceof HttpException ? Response::$statusTexts[$exception->getStatusCode()] : 'Server Error',
+                ], $parentRender->status());
     }
+
+    /**
+     * Determine if the application is in debug mode.
+     *
+     * @return Boolean
+     */
+    public function isDebugMode() {
+        return (boolean) env('APP_DEBUG');
+    }
+
 }
