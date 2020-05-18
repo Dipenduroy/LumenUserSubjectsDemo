@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Usersubject;
+use Illuminate\Validation\Rule;
 
 class UsersubjectsController extends Controller {
 
@@ -30,9 +31,18 @@ class UsersubjectsController extends Controller {
      *
      * @return Response
      */
-    public function store(Request $request,$userid) {
+    public function store(Request $request, $userid) {
         $this->validate($request, [
-            'user_subject' => 'required'
+            'user_subject' => [
+                'required',
+                'array',
+            ],
+            'user_subject.*' => [
+                Rule::unique('usersubjects', 'subject')->where(function ($query) use ($userid) {
+                            $query->where('user_id', $userid);
+                        }),
+                'distinct'
+            ]
         ]);
         $user_subject = $request->input('user_subject', []);
         $data = [];
@@ -44,7 +54,7 @@ class UsersubjectsController extends Controller {
             );
         }
         Usersubject::insert($data);
-        return response()->json(Usersubject::where('user_id', $userid)->get(),201);
+        return response()->json(Usersubject::where('user_id', $userid)->get(), 201);
     }
 
     /**
@@ -52,26 +62,38 @@ class UsersubjectsController extends Controller {
      *
      * @return Response
      */
-    public function destroy($userid,$id) {
-        Usersubject::findOrFail($id);                
+    public function destroy($userid, $id) {
+        $count = Usersubject::where('user_id', $userid)->where('id', $id)->count();
+        if ($count == 0) {
+            return response()->json([], 404);
+        }
         Usersubject::where('user_id', $userid)->where('id', $id)->delete();
-        return response()->json([],204);
+        return response()->json(Usersubject::where('user_id', $userid)->get(), 200);
     }
-    
+
     /**
      * Update a user's subject.
      *
      * @return Response
      */
-    public function update(Request $request,$userid,$id) {
+    public function update(Request $request, $userid, $id) {
         $this->validate($request, [
-            'user_subject' => 'required'
+            'user_subject' => [
+                'required',
+                'string',
+                Rule::unique('usersubjects', 'subject')->where(function ($query) use ($userid) {
+                            $query->where('user_id', $userid);
+                        })->ignore($id),
+            ]
         ]);
         $user_subject = $request->input('user_subject');
-        $model=Usersubject::findOrFail($id);
-        $model->subject=$user_subject;
-        $model->save();     
-        return response()->json(Usersubject::where('user_id', $userid)->get(),200);
+        $Usersubject = Usersubject::where('user_id', $userid)->where('id', $id)->first();
+        if (empty($Usersubject)) {
+            return response()->json([], 404);
+        }
+        $Usersubject->subject = $user_subject;
+        $Usersubject->save();
+        return response()->json(Usersubject::where('user_id', $userid)->get(), 200);
     }
 
 }
