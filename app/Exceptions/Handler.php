@@ -50,10 +50,12 @@ class Handler extends ExceptionHandler {
      */
     public function render($request, Throwable $exception) {
         $parentRender = parent::render($request, $exception);
-        if ($this->isDebugMode()) {
+        if ($this->isDebugMode() || $exception instanceof ValidationException) {
             return $parentRender;
         }
-
+        if ($exception instanceof ModelNotFoundException) {
+            abort(404);
+        }
         return new JsonResponse([
             'message' => $exception instanceof HttpException ? Response::$statusTexts[$exception->getStatusCode()] : 'Server Error',
                 ], $parentRender->status());
