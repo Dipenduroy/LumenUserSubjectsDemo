@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Usersubject;
 use Illuminate\Validation\Rule;
+use App\Services\Request\Helper;
 
 class UsersubjectsController extends Controller {
 
@@ -31,7 +32,7 @@ class UsersubjectsController extends Controller {
      *
      * @return Response
      */
-    public function store(Request $request, $userid) {
+    public function store(Request $request, $userid,Helper $helper) {
         $this->validate($request, [
             'user_subject' => [
                 'required',
@@ -54,6 +55,12 @@ class UsersubjectsController extends Controller {
             );
         }
         Usersubject::insert($data);
+        
+        //To trace two guzzle calls in different trace id
+//         $user_subject_response_string = $helper->getServiceResponse('USER_PREFERENCES', 'post',
+//             'api/user-preferences/user/' . $userid, [],
+//             ['user_preference' => 'play ins'], true);
+            
         return response()->json(Usersubject::where('user_id', $userid)->get(), 201);
     }
 

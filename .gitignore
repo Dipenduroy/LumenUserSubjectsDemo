@@ -6,3 +6,7 @@ Homestead.yaml
 .phpunit.result.cache
 storage
 nbproject
+build
+.settings
+.buildpath
+.project
