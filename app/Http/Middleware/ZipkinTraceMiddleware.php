@@ -29,6 +29,6 @@ class ZipkinTraceMiddleware
     public function terminate($request, $response)
     {
         /* Sends the trace to zipkin once the response is served */
-        $this->ZipkinTrace->flushTracer();
+        $this->ZipkinTrace->flushTracer($request, $response);
     }
 }

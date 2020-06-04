@@ -4,7 +4,6 @@ namespace App\Services\Trace;
 use Zipkin\Propagation\DefaultSamplingFlags;
 use Zipkin\Propagation\Map;
 use Zipkin\Timestamp;
-
 use Zipkin\Endpoint;
 use Zipkin\Samplers\BinarySampler;
 use Zipkin\TracingBuilder;
@@ -23,55 +22,36 @@ class ZipkinTrace
     private $span_array=[];
 
     /**
+     * 
+     * @param boolean $createRootSpan
      */
     public function __construct($createRootSpan=false)
     {
         $this->tracing = self::create_tracing(env('APP_NAME'),$_SERVER['SERVER_ADDR']);
         $this->tracer= $this->tracing->getTracer();
-//         $this->createRootSpan=$createRootSpan;
-//         if($this->createRootSpan && !$this->createdRootSpan) {
-//             /* Always sample traces */
-//             $this->defaultSamplingFlags = DefaultSamplingFlags::createAsSampled();
-//             $this->root_span = $this->current_span=$this->tracer->newTrace($this->defaultSamplingFlags);
-//             /* Creates the main span */
-//             $this->current_span->start(Timestamp\now());
-//         } else {
-//             $request = \Symfony\Component\HttpFoundation\Request::createFromGlobals();
-//             $carrier = array_map(function ($header) {
-//                 return $header[0];
-//             }, $request->headers->all());
-//             $extractor = $this->tracing->getPropagation()->getExtractor(new Map());
-//             $this->extractedContext = $extractor($carrier);
-//             /* Creates the extracted main span */
-//             $this->current_span=$this->tracer->nextSpan($this->extractedContext );
-//             $this->current_span->start();
-//         }
-//         $this->current_span->setKind(\Zipkin\Kind\SERVER);
-//         $this->current_span->setName('parse_request');
-//         $this->span_array[]=$this->current_span;
+        $this->createRootSpan=$createRootSpan;
+        if($this->createRootSpan && !$this->createdRootSpan) {
+            /* Always sample traces */
+            $this->defaultSamplingFlags = DefaultSamplingFlags::createAsSampled();
+            $this->root_span = $this->current_span=$this->tracer->newTrace($this->defaultSamplingFlags);
+            /* Creates the main span */
+            $this->current_span->start(Timestamp\now());
+        } else {
+            $request = \Symfony\Component\HttpFoundation\Request::createFromGlobals();
+            $carrier = array_map(function ($header) {
+                return $header[0];
+            }, $request->headers->all());
+            $extractor = $this->tracing->getPropagation()->getExtractor(new Map());
+            $this->extractedContext = $extractor($carrier);
+            /* Creates the extracted main span */
+            $this->current_span=$this->tracer->nextSpan($this->extractedContext );
+            $this->current_span->start();
+        }
+        $this->current_span->setKind(\Zipkin\Kind\SERVER);
+        $this->current_span->setName('parse_request');
+        $this->span_array[]=$this->current_span;
         
     }
-    
-    public function getTracing() {
-        return $this->tracing;
-    }
-    
-    public function createChildSpan($name='client_call') {
-        $this->current_span=$this->tracer->newChild($this->current_span->getContext());
-        $this->current_span->start();
-        $this->current_span->setKind(\Zipkin\Kind\CLIENT);
-        $this->current_span->setName($name);
-        $this->span_array[]=$this->current_span;
-        return $this->current_span;
-    }
-    
-    public function flushTracer() {
-        while(!empty($this->span_array)){
-            $span = array_pop($this->span_array);
-            $span->finish();
-        }
-        $this->getTracing()->getTracer()->flush();
-    } 
     
     /**
      * create_tracing function is a handy function that allows you to create a tracing
@@ -98,10 +78,40 @@ class ZipkinTrace
         ->havingReporter($reporter)
         ->build();
     }
-
-    /**
-     */
-    function __destruct()
-    {}
+    
+    public function createChildClientSpan($name='guzzle_client_call') {
+        if(count($this->span_array)>1){
+            $childSpan=array_pop($this->span_array);
+            $childSpan->finish();
+        }
+        $this->current_span=$this->tracer->newChild($this->current_span->getContext());
+        $this->current_span->start();
+        $this->current_span->setKind(\Zipkin\Kind\CLIENT);
+        $this->current_span->setName($name);
+        $this->span_array[]=$this->current_span;
+        return $this->current_span;
+    }
+    
+    public function getHeaders(){
+        $headers = [];
+        $injector = $this->tracing->getPropagation()->getInjector(new Map());
+        $injector($this->current_span->getContext(), $headers);
+        return $headers;
+    }
+    
+    public function flushTracer($request, $response) {
+        while(!empty($this->span_array)){
+            $span = array_pop($this->span_array);
+            if(count($this->span_array)==0){
+                $span->tag(\Zipkin\Tags\HTTP_HOST, $request->getSchemeAndHttpHost());
+                $span->tag(\Zipkin\Tags\HTTP_URL, $request->fullUrl());
+                $span->tag(\Zipkin\Tags\HTTP_PATH, $request->path());
+                $span->tag(\Zipkin\Tags\HTTP_METHOD, strtoupper($request->method()));
+                $span->tag(\Zipkin\Tags\HTTP_STATUS_CODE, $response->status());
+            }
+            $span->finish();
+        }
+        $this->tracer->flush();
+    }
 }
 
